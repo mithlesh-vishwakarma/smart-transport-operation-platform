@@ -21,3 +21,8 @@ ENV/
 
 # Sensitive environment variables
 .env
+
+# Frontend Node Modules
+node_modules/
+TransitOps/node_modules/
+
