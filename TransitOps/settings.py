@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'drf_spectacular',
     'accounts',
     'fleet',
 ]
@@ -78,6 +79,7 @@ WSGI_APPLICATION = 'TransitOps.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 import dj_database_url
+import sys
 
 DATABASES = {
     'default': dj_database_url.config(
@@ -85,6 +87,14 @@ DATABASES = {
         conn_max_age=600
     )
 }
+
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
 
 
 # Password validation
@@ -134,5 +144,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Swagger OpenAPI settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'TransitOps Smart Transport API',
+    'DESCRIPTION': 'REST API endpoints managing user accounts, vehicle fleet registration, driver compliance tracking, operational dispatches, logs, and analytics reports.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 

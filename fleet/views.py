@@ -5,16 +5,19 @@ from rest_framework.views import APIView
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
+from django.utils import timezone
 import csv
+import datetime
 
 from accounts.permissions import IsFleetManagerOrReadOnly
 from .models import (
     Vehicle, DriverProfile, Trip, MaintenanceLog, 
-    FuelLog, Expense
+    FuelLog, Expense, VehicleDocument
 )
 from .serializers import (
     VehicleSerializer, DriverProfileSerializer, TripSerializer, 
-    MaintenanceLogSerializer, FuelLogSerializer, ExpenseSerializer
+    MaintenanceLogSerializer, FuelLogSerializer, ExpenseSerializer,
+    VehicleDocumentSerializer
 )
 
 class VehicleViewSet(viewsets.ModelViewSet):
@@ -224,6 +227,78 @@ class AnalyticsReportView(APIView):
             return response
             
         return Response(report_data)
+
+class VehicleDocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = VehicleDocumentSerializer
+    permission_classes = [IsFleetManagerOrReadOnly]
+    queryset = VehicleDocument.objects.all()
+
+class ComplianceAlertView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+        expiring_limit_driver = today + datetime.timedelta(days=30)
+        expiring_limit_doc = today + datetime.timedelta(days=15)
+        
+        expired_drivers = DriverProfile.objects.filter(license_expiry_date__lt=today)
+        expiring_drivers = DriverProfile.objects.filter(
+            license_expiry_date__gte=today,
+            license_expiry_date__lte=expiring_limit_driver
+        )
+        
+        expired_docs = VehicleDocument.objects.filter(expiry_date__lt=today)
+        expiring_docs = VehicleDocument.objects.filter(
+            expiry_date__gte=today,
+            expiry_date__lte=expiring_limit_doc
+        )
+        
+        driver_expired_list = [{
+            'driver_id': d.id,
+            'driver_name': d.user.username,
+            'license_number': d.license_number,
+            'expiry_date': str(d.license_expiry_date),
+            'days_expired': (today - d.license_expiry_date).days
+        } for d in expired_drivers]
+        
+        driver_expiring_list = [{
+            'driver_id': d.id,
+            'driver_name': d.user.username,
+            'license_number': d.license_number,
+            'expiry_date': str(d.license_expiry_date),
+            'days_remaining': (d.license_expiry_date - today).days
+        } for d in expiring_drivers]
+        
+        doc_expired_list = [{
+            'document_id': doc.id,
+            'vehicle_id': doc.vehicle.id,
+            'registration_number': doc.vehicle.registration_number,
+            'document_name': doc.document_name,
+            'document_number': doc.document_number,
+            'expiry_date': str(doc.expiry_date),
+            'days_expired': (today - doc.expiry_date).days
+        } for doc in expired_docs]
+        
+        doc_expiring_list = [{
+            'document_id': doc.id,
+            'vehicle_id': doc.vehicle.id,
+            'registration_number': doc.vehicle.registration_number,
+            'document_name': doc.document_name,
+            'document_number': doc.document_number,
+            'expiry_date': str(doc.expiry_date),
+            'days_remaining': (doc.expiry_date - today).days
+        } for doc in expiring_docs]
+        
+        return Response({
+            'driver_alerts': {
+                'expired': driver_expired_list,
+                'expiring_soon_30_days': driver_expiring_list
+            },
+            'document_alerts': {
+                'expired': doc_expired_list,
+                'expiring_soon_15_days': doc_expiring_list
+            }
+        })
 
 
 
