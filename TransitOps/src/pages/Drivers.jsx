@@ -1,8 +1,9 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   addDriver,
+  loadDrivers,
   selectFilteredDrivers,
   setDriverSearch,
   setDriverStatusFilter,
@@ -59,6 +60,10 @@ function Drivers() {
   const search = useAppSelector((s) => s.drivers.search)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
+
+  useEffect(() => {
+    dispatch(loadDrivers())
+  }, [dispatch])
 
   const onSubmit = async (e) => {
     e.preventDefault()

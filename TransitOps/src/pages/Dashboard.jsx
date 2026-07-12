@@ -5,7 +5,7 @@ import {
   selectDashboard,
   setDashboardFilters,
 } from '../store/slices/appDataSlice'
-import { selectRecentTrips } from '../store/slices/tripsSlice'
+import { selectRecentTrips, loadTrips } from '../store/slices/tripsSlice'
 import KpiCard from '../components/ui/KpiCard'
 import Select from '../components/ui/Select'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -34,6 +34,7 @@ function Dashboard() {
 
   useEffect(() => {
     dispatch(loadDashboard(filters))
+    dispatch(loadTrips())
   }, [dispatch, filters])
 
   return (

@@ -127,7 +127,7 @@ class FuelLogViewSet(viewsets.ModelViewSet):
     permission_classes = [IsFleetManagerOrReadOnly]
     queryset = FuelLog.objects.all()
 
-class ExpenseViewSet(viewsets.ReadOnlyModelViewSet):
+class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     permission_classes = [IsFleetManagerOrReadOnly]
     queryset = Expense.objects.all()

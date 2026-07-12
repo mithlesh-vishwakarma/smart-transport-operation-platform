@@ -31,7 +31,8 @@ export const loginRequest = async ({ email, password, role }) => {
     }
   }
 
-  const { data } = await apiClient.post('/auth/login', { email, password, role })
+  // Use trailing slash to match django SimpleJWT endpoint exactly
+  const { data } = await apiClient.post('/auth/login/', { username: email, password })
   return data
 }
 
@@ -43,8 +44,8 @@ export const logoutRequest = async () => {
     await delay(100)
     return { success: true }
   }
-  const { data } = await apiClient.post('/auth/logout')
-  return data
+  // JWT logout is stateless client-side; no backend endpoint is needed
+  return { success: true }
 }
 
 /**
@@ -55,6 +56,7 @@ export const fetchCurrentUser = async () => {
     const raw = localStorage.getItem('transitops_user')
     return raw ? JSON.parse(raw) : null
   }
-  const { data } = await apiClient.get('/auth/me')
+  const { data } = await apiClient.get('/auth/profile/')
   return data
 }
+

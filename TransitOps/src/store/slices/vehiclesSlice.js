@@ -33,7 +33,7 @@ export const patchVehicle = createAsyncThunk(
 const vehiclesSlice = createSlice({
   name: 'vehicles',
   initialState: {
-    items: mockVehicles,
+    items: [],
     filters: { type: 'All', status: 'All', search: '', region: 'All' },
     loading: false,
     error: null,

@@ -1,8 +1,8 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { addTrip, changeTripStatus, selectTrips } from '../store/slices/tripsSlice'
-import { selectDispatchableVehicles } from '../store/slices/vehiclesSlice'
-import { selectAssignableDrivers } from '../store/slices/driversSlice'
+import { addTrip, changeTripStatus, selectTrips, loadTrips } from '../store/slices/tripsSlice'
+import { selectDispatchableVehicles, loadVehicles } from '../store/slices/vehiclesSlice'
+import { selectAssignableDrivers, loadDrivers } from '../store/slices/driversSlice'
 import { TRIP_STATUS } from '../utils/constants'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -53,6 +53,12 @@ function Trips() {
   const trips = useAppSelector(selectTrips)
   const vehicles = useAppSelector(selectDispatchableVehicles)
   const drivers = useAppSelector(selectAssignableDrivers)
+
+  useEffect(() => {
+    dispatch(loadTrips())
+    dispatch(loadVehicles())
+    dispatch(loadDrivers())
+  }, [dispatch])
 
   const [form, setForm] = useState({
     source: 'Gandhinagar Depot',

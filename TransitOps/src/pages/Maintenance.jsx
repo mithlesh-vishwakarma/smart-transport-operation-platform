@@ -1,7 +1,7 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { addMaintenance, closeMaintenance, selectMaintenance } from '../store/slices/maintenanceSlice'
-import { selectVehicles } from '../store/slices/vehiclesSlice'
+import { addMaintenance, closeMaintenance, selectMaintenance, loadMaintenance } from '../store/slices/maintenanceSlice'
+import { selectVehicles, loadVehicles } from '../store/slices/vehiclesSlice'
 import { MAINTENANCE_STATUS } from '../utils/constants'
 import { formatCurrency, formatDate } from '../utils/format'
 import Button from '../components/ui/Button'
@@ -37,6 +37,11 @@ function Maintenance() {
   const dispatch = useAppDispatch()
   const records = useAppSelector(selectMaintenance)
   const vehicles = useAppSelector(selectVehicles)
+
+  useEffect(() => {
+    dispatch(loadMaintenance())
+    dispatch(loadVehicles())
+  }, [dispatch])
 
   const [form, setForm] = useState({
     vehicleId: '',

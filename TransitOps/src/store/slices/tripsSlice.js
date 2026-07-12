@@ -75,7 +75,7 @@ export const changeTripStatus = createAsyncThunk(
 const tripsSlice = createSlice({
   name: 'trips',
   initialState: {
-    items: mockTrips,
+    items: [],
     loading: false,
     error: null,
   },

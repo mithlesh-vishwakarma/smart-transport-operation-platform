@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
@@ -7,8 +7,10 @@ import {
   selectExpenses,
   selectFuelLogs,
   selectTotalOperationalCost,
+  loadFuelLogs,
+  loadExpenses,
 } from '../store/slices/fuelSlice'
-import { selectVehicles } from '../store/slices/vehiclesSlice'
+import { selectVehicles, loadVehicles } from '../store/slices/vehiclesSlice'
 import { formatCurrency, formatDate } from '../utils/format'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -50,6 +52,12 @@ function FuelExpenses() {
   const expenses = useAppSelector(selectExpenses)
   const totalCost = useAppSelector(selectTotalOperationalCost)
   const vehicles = useAppSelector(selectVehicles)
+
+  useEffect(() => {
+    dispatch(loadFuelLogs())
+    dispatch(loadExpenses())
+    dispatch(loadVehicles())
+  }, [dispatch])
 
   const [fuelOpen, setFuelOpen] = useState(false)
   const [expenseOpen, setExpenseOpen] = useState(false)

@@ -3,6 +3,29 @@ import { mockVehicles } from '../data/mockData'
 
 let localVehicles = [...mockVehicles]
 
+const mapBackendVehicle = (v) => ({
+  id: v.id,
+  registrationNumber: v.registration_number,
+  nameModel: v.name_model,
+  type: v.vehicle_type,
+  capacity: v.max_load_capacity >= 1000 ? `${v.max_load_capacity / 1000} Ton` : `${v.max_load_capacity} kg`,
+  capacityKg: v.max_load_capacity,
+  odometer: v.odometer,
+  acquisitionCost: Number(v.acquisition_cost),
+  status: v.status,
+  region: 'Gandhinagar'
+})
+
+const mapFrontendVehicle = (v) => ({
+  registration_number: v.registrationNumber,
+  name_model: v.nameModel,
+  vehicle_type: v.type,
+  max_load_capacity: v.capacityKg,
+  odometer: v.odometer,
+  acquisition_cost: v.acquisitionCost,
+  status: v.status
+})
+
 /**
  * GET /vehicles?type=&status=&search=
  */
@@ -26,8 +49,15 @@ export const fetchVehicles = async (params = {}) => {
     }
     return list
   }
-  const { data } = await apiClient.get('/vehicles', { params })
-  return data
+  
+  // DRF search mapping
+  const apiParams = {}
+  if (params.status && params.status !== 'All') apiParams.status = params.status
+  if (params.type && params.type !== 'All') apiParams.vehicle_type = params.type
+  if (params.search) apiParams.search = params.search
+
+  const { data } = await apiClient.get('/vehicles/', { params: apiParams })
+  return data.map(mapBackendVehicle)
 }
 
 /**
@@ -50,8 +80,9 @@ export const createVehicle = async (payload) => {
     localVehicles = [vehicle, ...localVehicles]
     return vehicle
   }
-  const { data } = await apiClient.post('/vehicles', payload)
-  return data
+
+  const { data } = await apiClient.post('/vehicles/', mapFrontendVehicle(payload))
+  return mapBackendVehicle(data)
 }
 
 /**
@@ -63,8 +94,8 @@ export const updateVehicle = async (id, payload) => {
     localVehicles = localVehicles.map((v) => (v.id === id ? { ...v, ...payload } : v))
     return localVehicles.find((v) => v.id === id)
   }
-  const { data } = await apiClient.put(`/vehicles/${id}`, payload)
-  return data
+  const { data } = await apiClient.put(`/vehicles/${id}/`, mapFrontendVehicle(payload))
+  return mapBackendVehicle(data)
 }
 
 /**
@@ -76,6 +107,7 @@ export const deleteVehicle = async (id) => {
     localVehicles = localVehicles.filter((v) => v.id !== id)
     return { success: true }
   }
-  const { data } = await apiClient.delete(`/vehicles/${id}`)
+  const { data } = await apiClient.delete(`/vehicles/${id}/`)
   return data
 }
+

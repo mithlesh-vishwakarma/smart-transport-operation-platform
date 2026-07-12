@@ -34,7 +34,7 @@ export const patchDriver = createAsyncThunk(
 const driversSlice = createSlice({
   name: 'drivers',
   initialState: {
-    items: mockDrivers,
+    items: [],
     statusFilter: 'All',
     search: '',
     loading: false,

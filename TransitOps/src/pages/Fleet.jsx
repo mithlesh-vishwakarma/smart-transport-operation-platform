@@ -1,8 +1,9 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   addVehicle,
+  loadVehicles,
   selectFilteredVehicles,
   selectVehicleFilters,
   setVehicleFilters,
@@ -49,6 +50,10 @@ function Fleet() {
   const error = useAppSelector((s) => s.vehicles.error)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
+
+  useEffect(() => {
+    dispatch(loadVehicles(filters))
+  }, [dispatch, filters])
   const [formError, setFormError] = useState('')
 
   const typeOptions = useMemo(() => ['All', ...VEHICLE_TYPES], [])

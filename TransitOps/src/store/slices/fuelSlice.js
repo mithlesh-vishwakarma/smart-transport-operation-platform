@@ -42,8 +42,8 @@ export const addExpense = createAsyncThunk('fuel/addExpense', async (payload, { 
 const fuelSlice = createSlice({
   name: 'fuel',
   initialState: {
-    logs: mockFuelLogs,
-    expenses: mockExpenses,
+    logs: [],
+    expenses: [],
     loading: false,
     error: null,
   },

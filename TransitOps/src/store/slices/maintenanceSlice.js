@@ -56,7 +56,7 @@ export const closeMaintenance = createAsyncThunk(
 const maintenanceSlice = createSlice({
   name: 'maintenance',
   initialState: {
-    items: mockMaintenance,
+    items: [],
     loading: false,
     error: null,
   },

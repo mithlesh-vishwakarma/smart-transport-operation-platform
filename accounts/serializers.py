@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from fleet.models import DriverProfile
 from .models import UserRole
@@ -63,3 +64,49 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             )
 
         return user
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        username_or_email = attrs.get('username') or attrs.get('email')
+        password = attrs.get('password')
+
+        user = None
+        if '@' in username_or_email:
+            user = User.objects.filter(email__iexact=username_or_email).first()
+        else:
+            user = User.objects.filter(username__iexact=username_or_email).first()
+
+        if user and user.check_password(password):
+            attrs['username'] = user.username
+
+        data = super().validate(attrs)
+
+        role_homes = {
+            'FLEET_MANAGER': '/fleet',
+            'DISPATCHER': '/dashboard',
+            'SAFETY_OFFICER': '/drivers',
+            'FINANCIAL_ANALYST': '/fuel',
+            'DRIVER': '/dashboard'
+        }
+
+        role_frontend_map = {
+            'FLEET_MANAGER': 'Fleet Manager',
+            'DISPATCHER': 'Dispatcher',
+            'SAFETY_OFFICER': 'Safety Officer',
+            'FINANCIAL_ANALYST': 'Financial Analyst',
+            'DRIVER': 'Driver'
+        }
+        frontend_role = role_frontend_map.get(user.role, user.role)
+        role_home = role_homes.get(user.role, '/dashboard')
+
+        data['user'] = {
+            'id': user.id,
+            'name': user.username,
+            'email': user.email,
+            'role': frontend_role,
+            'homePath': role_home
+        }
+        data['token'] = data['access']
+        return data
+

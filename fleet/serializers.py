@@ -28,21 +28,30 @@ class DriverProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'safety_score')
 
 class TripSerializer(serializers.ModelSerializer):
+    vehicle_name = serializers.CharField(source='vehicle.name_model', read_only=True)
+    driver_name = serializers.CharField(source='driver.user.username', read_only=True)
+
     class Meta:
         model = Trip
         fields = '__all__'
 
 class MaintenanceLogSerializer(serializers.ModelSerializer):
+    vehicle_name = serializers.CharField(source='vehicle.name_model', read_only=True)
+
     class Meta:
         model = MaintenanceLog
         fields = '__all__'
 
 class FuelLogSerializer(serializers.ModelSerializer):
+    vehicle_name = serializers.CharField(source='vehicle.name_model', read_only=True)
+
     class Meta:
         model = FuelLog
         fields = '__all__'
 
 class ExpenseSerializer(serializers.ModelSerializer):
+    vehicle_name = serializers.CharField(source='vehicle.name_model', read_only=True)
+
     class Meta:
         model = Expense
         fields = '__all__'
