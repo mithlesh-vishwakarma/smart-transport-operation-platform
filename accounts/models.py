@@ -6,6 +6,7 @@ class UserRole(models.TextChoices):
     DRIVER = 'DRIVER', 'Driver'
     SAFETY_OFFICER = 'SAFETY_OFFICER', 'Safety Officer'
     FINANCIAL_ANALYST = 'FINANCIAL_ANALYST', 'Financial Analyst'
+    DISPATCHER = 'DISPATCHER', 'Dispatcher'
 
 class CustomUser(AbstractUser):
     role = models.CharField(
