@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Download } from 'lucide-react'
+import { Download, Printer } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   exportAnalyticsCsv,
@@ -48,9 +48,14 @@ function Analytics() {
         <p className="text-sm text-ink-400">
           ROI = (Revenue − (Maintenance + Fuel)) / Acquisition Cost
         </p>
-        <Button variant="secondary" onClick={handleExport}>
-          <Download size={16} /> Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => window.print()}>
+            <Printer size={16} /> Export PDF
+          </Button>
+          <Button variant="secondary" onClick={handleExport}>
+            <Download size={16} /> Export CSV
+          </Button>
+        </div>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

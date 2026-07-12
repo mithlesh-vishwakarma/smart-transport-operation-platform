@@ -25,3 +25,9 @@ export {
   fetchSettings,
   updateSettings,
 } from './analytics'
+
+export {
+  fetchVehicleDocuments,
+  createVehicleDocument,
+  deleteVehicleDocument,
+} from './documents'

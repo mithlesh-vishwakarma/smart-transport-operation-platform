@@ -88,3 +88,69 @@ button {
 .animate-fade-up {
   animation: fade-up 0.35s ease-out both;
 }
+
+/* Light Theme Variables Override */
+body.light {
+  --color-surface-950: #f9fafb;
+  --color-surface-900: #f3f4f6;
+  --color-surface-850: #ffffff;
+  --color-surface-800: #e5e7eb;
+  --color-surface-700: #d1d5db;
+  --color-surface-600: #9ca3af;
+
+  --color-ink-100: #111827;
+  --color-ink-200: #374151;
+  --color-ink-300: #4b5563;
+  --color-ink-400: #6b7280;
+
+  --color-accent-muted: rgba(232, 145, 45, 0.08);
+}
+
+/* High-Fidelity Print Style Configuration for PDF Exports */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  body.light, body {
+    --color-surface-950: #ffffff !important;
+    --color-surface-900: #ffffff !important;
+    --color-surface-850: #ffffff !important;
+    --color-surface-800: #e5e7eb !important;
+    --color-surface-700: #d1d5db !important;
+    --color-ink-100: #000000 !important;
+    --color-ink-200: #111827 !important;
+    --color-ink-300: #374151 !important;
+    --color-ink-400: #4b5563 !important;
+  }
+
+  /* Hide headers, sidebars, forms, actions and buttons */
+  header,
+  aside,
+  form,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Make content cover full width */
+  main,
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Layout grids for print */
+  .grid {
+    display: block !important;
+  }
+  
+  .card, article {
+    page-break-inside: avoid;
+    border: 1px solid #d1d5db !important;
+    margin-bottom: 1rem !important;
+  }
+}

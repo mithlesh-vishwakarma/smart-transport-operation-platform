@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react'
-import { Plus, Edit } from 'lucide-react'
+import { Plus, Edit, FileText, Trash2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   addVehicle,
@@ -12,13 +12,14 @@ import {
 import { VEHICLE_STATUS, VEHICLE_TYPES, ROLES } from '../utils/constants'
 import { selectUserRole } from '../store/slices/authSlice'
 import { formatCurrency, formatNumber, parseCapacityKg } from '../utils/format'
+import { fetchVehicleDocuments, createVehicleDocument, deleteVehicleDocument } from '../api'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import StatusBadge from '../components/ui/StatusBadge'
 
-const VehicleRow = memo(function VehicleRow({ vehicle, onEdit, isReadOnly }) {
+const VehicleRow = memo(function VehicleRow({ vehicle, onEdit, onManageDocs, isReadOnly }) {
   return (
     <tr className="border-b border-surface-700/80 last:border-0">
       <td className="px-3 py-3 text-sm font-medium text-ink-100">{vehicle.registrationNumber}</td>
@@ -30,18 +31,28 @@ const VehicleRow = memo(function VehicleRow({ vehicle, onEdit, isReadOnly }) {
       <td className="px-3 py-3">
         <StatusBadge status={vehicle.status} />
       </td>
-      {!isReadOnly && (
-        <td className="px-3 py-3">
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-3">
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => onEdit(vehicle)}
+              className="text-info hover:text-info/80 cursor-pointer"
+              title="Edit Vehicle"
+            >
+              <Edit size={16} />
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => onEdit(vehicle)}
-            className="text-info hover:text-info/80 cursor-pointer"
-            title="Edit Vehicle"
+            onClick={() => onManageDocs(vehicle)}
+            className="text-ink-300 hover:text-ink-100 cursor-pointer"
+            title="Manage Documents"
           >
-            <Edit size={16} />
+            <FileText size={16} />
           </button>
-        </td>
-      )}
+        </div>
+      </td>
     </tr>
   )
 })
@@ -68,6 +79,52 @@ function Fleet() {
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState('')
 
+  const [docsModalVehicle, setDocsModalVehicle] = useState(null)
+  const [docsList, setDocsList] = useState([])
+  const [docsLoading, setDocsLoading] = useState(false)
+  const [newDoc, setNewDoc] = useState({ documentName: '', documentNumber: '', expiryDate: '' })
+
+  useEffect(() => {
+    if (docsModalVehicle) {
+      setDocsLoading(true)
+      fetchVehicleDocuments(docsModalVehicle.id)
+        .then((data) => {
+          setDocsList(data)
+          setDocsLoading(false)
+        })
+        .catch(() => setDocsLoading(false))
+    }
+  }, [docsModalVehicle])
+
+  const handleManageDocsClick = (vehicle) => {
+    setDocsModalVehicle(vehicle)
+    setNewDoc({ documentName: '', documentNumber: '', expiryDate: '' })
+  }
+
+  const handleAddDoc = async (e) => {
+    e.preventDefault()
+    if (!newDoc.documentName || !newDoc.documentNumber || !newDoc.expiryDate) return
+    try {
+      const doc = await createVehicleDocument({
+        vehicleId: docsModalVehicle.id,
+        ...newDoc,
+      })
+      setDocsList((prev) => [...prev, doc])
+      setNewDoc({ documentName: '', documentNumber: '', expiryDate: '' })
+    } catch (err) {
+      console.error('Error creating document', err)
+    }
+  }
+
+  const handleDeleteDoc = async (docId) => {
+    try {
+      await deleteVehicleDocument(docId)
+      setDocsList((prev) => prev.filter((d) => d.id !== docId))
+    } catch (err) {
+      console.error('Error deleting document', err)
+    }
+  }
+
   const isReadOnly = role === ROLES.DISPATCHER || role === ROLES.FINANCIAL_ANALYST
 
   useEffect(() => {
@@ -76,6 +133,55 @@ function Fleet() {
 
   const typeOptions = useMemo(() => ['All', ...VEHICLE_TYPES], [])
   const statusOptions = useMemo(() => ['All', ...Object.values(VEHICLE_STATUS)], [])
+
+  const [sortField, setSortField] = useState('registrationNumber')
+  const [sortOrder, setSortOrder] = useState('asc')
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortedVehicles = useMemo(() => {
+    const list = [...vehicles]
+    list.sort((a, b) => {
+      let valA = a[sortField] ?? ''
+      let valB = b[sortField] ?? ''
+
+      if (typeof valA === 'string') {
+        valA = valA.toLowerCase()
+        valB = valB.toLowerCase()
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+    return list
+  }, [vehicles, sortField, sortOrder])
+
+  const renderSortHeader = (label, field) => {
+    const isSorted = sortField === field
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        className="px-3 py-3 font-medium cursor-pointer hover:text-ink-200 select-none text-xs uppercase tracking-wider"
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isSorted ? (
+            <span className="text-[10px]">{sortOrder === 'asc' ? '▲' : '▼'}</span>
+          ) : (
+            <span className="text-[10px] text-ink-400 opacity-20 hover:opacity-100">▲</span>
+          )}
+        </div>
+      </th>
+    )
+  }
 
   const handleEditClick = (vehicle) => {
     setEditingVehicle(vehicle)
@@ -173,22 +279,23 @@ function Fleet() {
         <table className="w-full min-w-[900px] text-left">
           <thead>
             <tr className="border-b border-surface-700 text-xs uppercase tracking-wider text-ink-400">
-              <th className="px-3 py-3 font-medium">Reg. No. (Unique)</th>
-              <th className="px-3 py-3 font-medium">Name/Model</th>
-              <th className="px-3 py-3 font-medium">Type</th>
-              <th className="px-3 py-3 font-medium">Capacity</th>
-              <th className="px-3 py-3 font-medium">Odometer</th>
-              <th className="px-3 py-3 font-medium">Acq. Cost</th>
-              <th className="px-3 py-3 font-medium">Status</th>
-              {!isReadOnly && <th className="px-3 py-3 font-medium">Actions</th>}
+              {renderSortHeader('Reg. No. (Unique)', 'registrationNumber')}
+              {renderSortHeader('Name/Model', 'nameModel')}
+              {renderSortHeader('Type', 'type')}
+              {renderSortHeader('Capacity', 'capacityKg')}
+              {renderSortHeader('Odometer', 'odometer')}
+              {renderSortHeader('Acq. Cost', 'acquisitionCost')}
+              {renderSortHeader('Status', 'status')}
+              <th className="px-3 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {vehicles.map((vehicle) => (
+            {sortedVehicles.map((vehicle) => (
               <VehicleRow
                 key={vehicle.id}
                 vehicle={vehicle}
                 onEdit={handleEditClick}
+                onManageDocs={handleManageDocsClick}
                 isReadOnly={isReadOnly}
               />
             ))}
@@ -263,6 +370,80 @@ function Fleet() {
           </div>
         </form>
       </Modal>
+
+      {docsModalVehicle && (
+        <Modal
+          open={!!docsModalVehicle}
+          onClose={() => setDocsModalVehicle(null)}
+          title={`Documents: ${docsModalVehicle.registrationNumber}`}
+        >
+          <div className="space-y-4">
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+              {docsLoading ? (
+                <p className="text-sm text-ink-300">Loading documents...</p>
+              ) : docsList.length === 0 ? (
+                <p className="text-sm text-ink-400 italic">No documents found for this vehicle.</p>
+              ) : (
+                docsList.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-3 rounded-lg border border-surface-700 bg-surface-850"
+                  >
+                    <div>
+                      <h4 className="text-sm font-semibold text-ink-100">{doc.document_name}</h4>
+                      <p className="text-xs text-ink-300 mt-0.5">
+                        No: {doc.document_number} | Expiry: {doc.expiry_date}
+                      </p>
+                    </div>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDoc(doc.id)}
+                        className="text-status-cancelled hover:text-status-cancelled/80 cursor-pointer p-1.5 rounded-md hover:bg-surface-800"
+                        title="Delete Document"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {!isReadOnly && (
+              <form onSubmit={handleAddDoc} className="border-t border-surface-700 pt-3 space-y-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-300">Add Document</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    label="Document Name"
+                    placeholder="e.g. Insurance, Permit"
+                    value={newDoc.documentName}
+                    onChange={(e) => setNewDoc({ ...newDoc, documentName: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="Document Number"
+                    placeholder="e.g. INS-998822"
+                    value={newDoc.documentNumber}
+                    onChange={(e) => setNewDoc({ ...newDoc, documentNumber: e.target.value })}
+                    required
+                  />
+                </div>
+                <Input
+                  label="Expiry Date"
+                  type="date"
+                  value={newDoc.expiryDate}
+                  onChange={(e) => setNewDoc({ ...newDoc, expiryDate: e.target.value })}
+                  required
+                />
+                <Button type="submit" className="w-full text-xs">
+                  Save Document
+                </Button>
+              </form>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

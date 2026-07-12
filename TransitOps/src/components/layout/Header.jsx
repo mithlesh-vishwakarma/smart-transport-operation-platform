@@ -1,5 +1,5 @@
-import { memo, useState } from 'react'
-import { Search, LogOut } from 'lucide-react'
+import { memo, useState, useEffect } from 'react'
+import { Search, LogOut, Sun, Moon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { logout, selectAuth } from '../../store/slices/authSlice'
@@ -10,6 +10,24 @@ function Header() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { user } = useAppSelector(selectAuth)
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'dark'
+  })
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light')
+    } else {
+      document.body.classList.remove('light')
+    }
+  }, [theme])
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('theme', next)
+  }
 
   const handleLogout = async () => {
     await dispatch(logout())
@@ -42,8 +60,16 @@ function Header() {
         </div>
         <button
           type="button"
+          onClick={toggleTheme}
+          className="rounded-lg border border-surface-600 p-2 text-ink-300 transition hover:border-accent hover:text-accent cursor-pointer no-print"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+        <button
+          type="button"
           onClick={handleLogout}
-          className="rounded-lg border border-surface-600 p-2 text-ink-300 transition hover:border-accent hover:text-accent cursor-pointer"
+          className="rounded-lg border border-surface-600 p-2 text-ink-300 transition hover:border-accent hover:text-accent cursor-pointer no-print"
           title="Sign out"
         >
           <LogOut size={16} />
