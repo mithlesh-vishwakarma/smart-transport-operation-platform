@@ -23,7 +23,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'role', 
+        fields = ('id', 'username', 'email', 'password', 'role', 
                   'license_number', 'license_category', 'license_expiry_date', 'contact_number')
 
     def validate(self, attrs):
