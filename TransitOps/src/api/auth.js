@@ -23,7 +23,7 @@ export const loginRequest = async ({ email, password, role }) => {
       token: 'mock-jwt-token',
       user: {
         id: 'u1',
-        name: displayName,
+        name: displayName || 'Raven K.',
         email,
         role: role || ROLES.DISPATCHER,
         homePath: ROLE_HOME[role] || '/dashboard',
