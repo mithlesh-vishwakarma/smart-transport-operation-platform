@@ -21,9 +21,9 @@ function Login() {
   const homePath = useAppSelector(selectHomePath)
 
   const [form, setForm] = useState({
-    email: 'raven.k@transitops.in',
+    email: 'manager@transitops.in',
     password: 'password',
-    role: ROLES.DISPATCHER,
+    role: ROLES.FLEET_MANAGER,
     remember: true,
   })
 

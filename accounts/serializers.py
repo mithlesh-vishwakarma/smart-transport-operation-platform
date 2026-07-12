@@ -97,8 +97,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'FINANCIAL_ANALYST': 'Financial Analyst',
             'DRIVER': 'Driver'
         }
-        frontend_role = role_frontend_map.get(user.role, user.role)
-        role_home = role_homes.get(user.role, '/dashboard')
+
+        # Dynamically support "One login, four roles" by reading the requested role from the login payload
+        requested_role = self.initial_data.get('role')
+        role_map = {
+            'Fleet Manager': 'FLEET_MANAGER',
+            'Dispatcher': 'DISPATCHER',
+            'Safety Officer': 'SAFETY_OFFICER',
+            'Financial Analyst': 'FINANCIAL_ANALYST',
+            'Driver': 'DRIVER'
+        }
+
+        assigned_role = user.role
+        if requested_role in role_map:
+            assigned_role = role_map[requested_role]
+
+        frontend_role = role_frontend_map.get(assigned_role, assigned_role)
+        role_home = role_homes.get(assigned_role, '/dashboard')
 
         data['user'] = {
             'id': user.id,

@@ -13,7 +13,7 @@ export const ROLE_HOME = {
 }
 
 export const ROLE_ACCESS = {
-  [ROLES.FLEET_MANAGER]: ['/dashboard', '/fleet', '/drivers', '/maintenance', '/analytics', '/settings'],
+  [ROLES.FLEET_MANAGER]: ['/dashboard', '/fleet', '/drivers', '/maintenance', '/settings'],
   [ROLES.DISPATCHER]: ['/dashboard', '/fleet', '/trips', '/settings'],
   [ROLES.SAFETY_OFFICER]: ['/dashboard', '/drivers', '/trips', '/settings'],
   [ROLES.FINANCIAL_ANALYST]: ['/dashboard', '/fleet', '/fuel', '/analytics', '/settings'],
@@ -66,7 +66,7 @@ export const RBAC_MATRIX = [
     drivers: '✓',
     trips: '—',
     fuel: '—',
-    analytics: '✓',
+    analytics: '—',
   },
   {
     role: ROLES.DISPATCHER,

@@ -16,7 +16,6 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
-import StatusBadge from '../components/ui/StatusBadge'
 
 const FuelRow = memo(function FuelRow({ log }) {
   return (
@@ -30,6 +29,7 @@ const FuelRow = memo(function FuelRow({ log }) {
 })
 
 const ExpenseRow = memo(function ExpenseRow({ expense }) {
+  const total = (expense.toll || 0) + (expense.other || 0) + (expense.maintenanceLinked || 0)
   return (
     <tr className="border-b border-surface-700/80 last:border-0">
       <td className="px-3 py-3 text-sm font-medium text-ink-100">{expense.tripCode}</td>
@@ -39,8 +39,8 @@ const ExpenseRow = memo(function ExpenseRow({ expense }) {
       <td className="px-3 py-3 text-sm text-ink-200">
         {formatCurrency(expense.maintenanceLinked)}
       </td>
-      <td className="px-3 py-3">
-        <StatusBadge status={expense.status} />
+      <td className="px-3 py-3 text-sm font-semibold text-ink-100">
+        {formatCurrency(total)}
       </td>
     </tr>
   )
@@ -69,11 +69,11 @@ function FuelExpenses() {
   })
   const [expenseForm, setExpenseForm] = useState({
     tripCode: '',
+    vehicleId: '',
     vehicleName: '',
     toll: '',
     other: '',
     maintenanceLinked: '',
-    status: 'Available',
   })
 
   const vehicleOptions = [
@@ -108,21 +108,21 @@ function FuelExpenses() {
     await dispatch(
       addExpense({
         tripCode: expenseForm.tripCode,
+        vehicleId: expenseForm.vehicleId,
         vehicleName: expenseForm.vehicleName,
         toll: Number(expenseForm.toll) || 0,
         other: Number(expenseForm.other) || 0,
         maintenanceLinked: Number(expenseForm.maintenanceLinked) || 0,
-        status: expenseForm.status,
       }),
     )
     setExpenseOpen(false)
     setExpenseForm({
       tripCode: '',
+      vehicleId: '',
       vehicleName: '',
       toll: '',
       other: '',
       maintenanceLinked: '',
-      status: 'Available',
     })
   }
 
@@ -241,10 +241,14 @@ function FuelExpenses() {
             onChange={(e) => setExpenseForm({ ...expenseForm, tripCode: e.target.value })}
             required
           />
-          <Input
+          <Select
             label="Vehicle"
-            value={expenseForm.vehicleName}
-            onChange={(e) => setExpenseForm({ ...expenseForm, vehicleName: e.target.value })}
+            value={expenseForm.vehicleId}
+            onChange={(e) => {
+              const v = vehicles.find((x) => x.id === e.target.value) || vehicles.find((x) => String(x.id) === e.target.value)
+              setExpenseForm({ ...expenseForm, vehicleId: e.target.value, vehicleName: v ? v.nameModel : '' })
+            }}
+            options={vehicleOptions}
             required
           />
           <div className="grid grid-cols-3 gap-3">

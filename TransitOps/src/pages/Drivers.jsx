@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Plus, Edit } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
@@ -73,6 +73,55 @@ function Drivers() {
   const [editingDriver, setEditingDriver] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState('')
+
+  const [sortField, setSortField] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortedDrivers = useMemo(() => {
+    const list = [...drivers]
+    list.sort((a, b) => {
+      let valA = a[sortField] ?? ''
+      let valB = b[sortField] ?? ''
+
+      if (typeof valA === 'string') {
+        valA = valA.toLowerCase()
+        valB = valB.toLowerCase()
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+    return list
+  }, [drivers, sortField, sortOrder])
+
+  const renderSortHeader = (label, field) => {
+    const isSorted = sortField === field
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        className="px-3 py-3 font-medium cursor-pointer hover:text-ink-200 select-none text-xs uppercase tracking-wider"
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isSorted ? (
+            <span className="text-[10px]">{sortOrder === 'asc' ? '▲' : '▼'}</span>
+          ) : (
+            <span className="text-[10px] text-ink-400 opacity-20 hover:opacity-100">▲</span>
+          )}
+        </div>
+      </th>
+    )
+  }
 
   useEffect(() => {
     dispatch(loadDrivers())
@@ -152,19 +201,19 @@ function Drivers() {
         <table className="w-full min-w-[980px] text-left">
           <thead>
             <tr className="border-b border-surface-700 text-xs uppercase tracking-wider text-ink-400">
-              <th className="px-3 py-3 font-medium">Driver</th>
-              <th className="px-3 py-3 font-medium">License No.</th>
-              <th className="px-3 py-3 font-medium">Category</th>
-              <th className="px-3 py-3 font-medium">Expiry</th>
-              <th className="px-3 py-3 font-medium">Contact</th>
-              <th className="px-3 py-3 font-medium">Trip Compl.</th>
-              <th className="px-3 py-3 font-medium">Safety</th>
-              <th className="px-3 py-3 font-medium">Status</th>
+              {renderSortHeader('Driver', 'name')}
+              {renderSortHeader('License No.', 'licenseNo')}
+              {renderSortHeader('Category', 'category')}
+              {renderSortHeader('Expiry', 'expiry')}
+              {renderSortHeader('Contact', 'contact')}
+              {renderSortHeader('Trip Compl.', 'tripCompletion')}
+              {renderSortHeader('Safety', 'safetyScore')}
+              {renderSortHeader('Status', 'status')}
               <th className="px-3 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {drivers.map((driver) => (
+            {sortedDrivers.map((driver) => (
               <DriverRow key={driver.id} driver={driver} onEdit={handleEditClick} />
             ))}
           </tbody>

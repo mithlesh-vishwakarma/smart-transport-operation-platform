@@ -14,6 +14,7 @@ const ServiceRow = memo(function ServiceRow({ record, onClose }) {
     <tr className="border-b border-surface-700/80 last:border-0">
       <td className="px-3 py-3 text-sm font-medium text-ink-100">{record.vehicleName}</td>
       <td className="px-3 py-3 text-sm text-ink-200">{record.serviceType}</td>
+      <td className="px-3 py-3 text-sm text-ink-200">{formatDate(record.date)}</td>
       <td className="px-3 py-3 text-sm text-ink-200">{formatCurrency(record.cost)}</td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
@@ -149,6 +150,7 @@ function Maintenance() {
               <tr className="border-b border-surface-700 text-xs uppercase tracking-wider text-ink-400">
                 <th className="px-3 py-2 font-medium">Vehicle</th>
                 <th className="px-3 py-2 font-medium">Service</th>
+                <th className="px-3 py-2 font-medium">Date</th>
                 <th className="px-3 py-2 font-medium">Cost</th>
                 <th className="px-3 py-2 font-medium">Status</th>
               </tr>
