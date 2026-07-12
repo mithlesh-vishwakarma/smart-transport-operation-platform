@@ -72,6 +72,17 @@ export const changeTripStatus = createAsyncThunk(
   },
 )
 
+export const patchTrip = createAsyncThunk(
+  'trips/patch',
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      return await updateTripStatus(id, data)
+    } catch (error) {
+      return rejectWithValue(error.message)
+    }
+  },
+)
+
 const tripsSlice = createSlice({
   name: 'trips',
   initialState: {
@@ -97,6 +108,10 @@ const tripsSlice = createSlice({
         state.items.unshift(action.payload)
       })
       .addCase(changeTripStatus.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((t) => t.id === action.payload.id)
+        if (idx !== -1) state.items[idx] = action.payload
+      })
+      .addCase(patchTrip.fulfilled, (state, action) => {
         const idx = state.items.findIndex((t) => t.id === action.payload.id)
         if (idx !== -1) state.items[idx] = action.payload
       })

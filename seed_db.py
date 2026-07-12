@@ -131,7 +131,7 @@ def seed():
         license_number="GJ14-2019-88421",
         license_category="Class C",
         license_expiry_date=datetime.date(2027, 11, 12),
-        contact_number="98xxxxx421",
+        contact_number="9876543421",
         safety_score=92.0,
         status=DriverProfile.Status.AVAILABLE
     )
@@ -148,7 +148,7 @@ def seed():
         license_number="GJ14-2018-11209",
         license_category="Class A",
         license_expiry_date=datetime.date(2025, 6, 1),
-        contact_number="97xxxxx108",
+        contact_number="9765432108",
         safety_score=74.0,
         status=DriverProfile.Status.SUSPENDED
     )
@@ -165,7 +165,7 @@ def seed():
         license_number="GJ14-2020-55102",
         license_category="Class A",
         license_expiry_date=datetime.date(2028, 3, 20),
-        contact_number="96xxxxx552",
+        contact_number="9654321552",
         safety_score=88.0,
         status=DriverProfile.Status.AVAILABLE
     )
@@ -182,7 +182,7 @@ def seed():
         license_number="GJ14-2017-33018",
         license_category="Class A",
         license_expiry_date=datetime.date(2027, 1, 15),
-        contact_number="95xxxxx019",
+        contact_number="9543210019",
         safety_score=85.0,
         status=DriverProfile.Status.OFF_DUTY
     )

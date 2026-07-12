@@ -113,46 +113,71 @@ class Trip(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        # Capture original status before saving to DB
+        # Capture original state before saving to DB
         old_status = None
+        old_vehicle = None
+        old_driver = None
         if self.pk:
-            old_status = Trip.objects.get(pk=self.pk).status
+            try:
+                orig = Trip.objects.get(pk=self.pk)
+                old_status = orig.status
+                old_vehicle = orig.vehicle
+                old_driver = orig.driver
+            except Trip.DoesNotExist:
+                pass
 
-        # Validate when transition is happening
-        if self.status == self.Status.DISPATCHED and old_status != self.Status.DISPATCHED:
-            self.clean()
+        # Validate when transition is happening or when reassignment is done on active dispatch
+        if self.status == self.Status.DISPATCHED:
+            if old_status != self.Status.DISPATCHED or old_vehicle != self.vehicle or old_driver != self.driver:
+                self.clean()
 
         super().save(*args, **kwargs)
 
         # Trigger automatic status switches
-        if old_status != self.status:
-            if self.status == self.Status.DISPATCHED:
-                # Dispatching
+        if self.status == self.Status.DISPATCHED:
+            # 1. Update current vehicle/driver to ON_TRIP
+            if self.vehicle.status != Vehicle.Status.ON_TRIP:
                 self.vehicle.status = Vehicle.Status.ON_TRIP
                 self.vehicle.save(update_fields=['status'])
+            if self.driver.status != DriverProfile.Status.ON_TRIP:
                 self.driver.status = DriverProfile.Status.ON_TRIP
                 self.driver.save(update_fields=['status'])
+
+            # 2. Reset old vehicle if it was reassigned
+            if old_vehicle and old_vehicle != self.vehicle:
+                other = Trip.objects.filter(vehicle=old_vehicle, status=self.Status.DISPATCHED).exclude(pk=self.pk)
+                if not other.exists():
+                    old_vehicle.status = Vehicle.Status.AVAILABLE
+                    old_vehicle.save(update_fields=['status'])
+
+            # 3. Reset old driver if it was reassigned
+            if old_driver and old_driver != self.driver:
+                other = Trip.objects.filter(driver=old_driver, status=self.Status.DISPATCHED).exclude(pk=self.pk)
+                if not other.exists():
+                    old_driver.status = DriverProfile.Status.AVAILABLE
+                    old_driver.save(update_fields=['status'])
+
+            if old_status != self.status:
                 TripStatusHistory.objects.create(trip=self, from_status=old_status or 'Draft', to_status=self.status)
 
-            elif self.status == self.Status.COMPLETED and old_status == self.Status.DISPATCHED:
-                # Trip completion
-                self.vehicle.status = Vehicle.Status.AVAILABLE
-                # Use actual distance if available, otherwise planned distance
-                dist = self.actual_distance if self.actual_distance is not None else self.planned_distance
-                self.vehicle.odometer += dist
-                self.vehicle.save(update_fields=['status', 'odometer'])
-                
-                self.driver.status = DriverProfile.Status.AVAILABLE
-                self.driver.save(update_fields=['status'])
-                TripStatusHistory.objects.create(trip=self, from_status=old_status, to_status=self.status)
+        elif self.status == self.Status.COMPLETED and old_status == self.Status.DISPATCHED:
+            # Trip completion
+            self.vehicle.status = Vehicle.Status.AVAILABLE
+            dist = self.actual_distance if self.actual_distance is not None else self.planned_distance
+            self.vehicle.odometer += dist
+            self.vehicle.save(update_fields=['status', 'odometer'])
+            
+            self.driver.status = DriverProfile.Status.AVAILABLE
+            self.driver.save(update_fields=['status'])
+            TripStatusHistory.objects.create(trip=self, from_status=old_status, to_status=self.status)
 
-            elif self.status == self.Status.CANCELLED and old_status == self.Status.DISPATCHED:
-                # Trip cancellation
-                self.vehicle.status = Vehicle.Status.AVAILABLE
-                self.vehicle.save(update_fields=['status'])
-                self.driver.status = DriverProfile.Status.AVAILABLE
-                self.driver.save(update_fields=['status'])
-                TripStatusHistory.objects.create(trip=self, from_status=old_status, to_status=self.status)
+        elif self.status == self.Status.CANCELLED and old_status == self.Status.DISPATCHED:
+            # Trip cancellation
+            self.vehicle.status = Vehicle.Status.AVAILABLE
+            self.vehicle.save(update_fields=['status'])
+            self.driver.status = DriverProfile.Status.AVAILABLE
+            self.driver.save(update_fields=['status'])
+            TripStatusHistory.objects.create(trip=self, from_status=old_status, to_status=self.status)
 
     def __str__(self):
         return f"Trip {self.id}: {self.source} -> {self.destination} ({self.status})"

@@ -1,9 +1,10 @@
 import { memo, useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Edit } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   addDriver,
   loadDrivers,
+  patchDriver,
   selectFilteredDrivers,
   setDriverSearch,
   setDriverStatusFilter,
@@ -16,7 +17,7 @@ import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import StatusBadge from '../components/ui/StatusBadge'
 
-const DriverRow = memo(function DriverRow({ driver }) {
+const DriverRow = memo(function DriverRow({ driver, onEdit }) {
   const expired = isLicenseExpired(driver.expiry)
   return (
     <tr className="border-b border-surface-700/80 last:border-0">
@@ -36,6 +37,16 @@ const DriverRow = memo(function DriverRow({ driver }) {
       </td>
       <td className="px-3 py-3">
         <StatusBadge status={driver.status} />
+      </td>
+      <td className="px-3 py-3">
+        <button
+          type="button"
+          onClick={() => onEdit(driver)}
+          className="text-info hover:text-info/80 cursor-pointer"
+          title="Edit Driver"
+        >
+          <Edit size={16} />
+        </button>
       </td>
     </tr>
   )
@@ -59,18 +70,67 @@ function Drivers() {
   const statusFilter = useAppSelector((s) => s.drivers.statusFilter)
   const search = useAppSelector((s) => s.drivers.search)
   const [open, setOpen] = useState(false)
+  const [editingDriver, setEditingDriver] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [formError, setFormError] = useState('')
 
   useEffect(() => {
     dispatch(loadDrivers())
   }, [dispatch])
 
+  const handleEditClick = (driver) => {
+    setEditingDriver(driver)
+    setForm({
+      name: driver.name,
+      licenseNo: driver.licenseNo,
+      category: driver.category === 'LMV' ? 'LMV' : 'HMV',
+      expiry: driver.expiry,
+      contact: driver.contact,
+      status: driver.status,
+      safety: driver.safety,
+      safetyScore: driver.safetyScore,
+      tripCompletion: driver.tripCompletion,
+    })
+    setFormError('')
+    setOpen(true)
+  }
+
+  const handleAddClick = () => {
+    setEditingDriver(null)
+    setForm(emptyForm)
+    setFormError('')
+    setOpen(true)
+  }
+
   const onSubmit = async (e) => {
     e.preventDefault()
-    const result = await dispatch(addDriver(form))
-    if (addDriver.fulfilled.match(result)) {
-      setOpen(false)
-      setForm(emptyForm)
+    setFormError('')
+    if (form.contact.length !== 10) {
+      setFormError('Contact number must be exactly 10 digits')
+      return
+    }
+    if (editingDriver) {
+      const result = await dispatch(
+        patchDriver({
+          id: editingDriver.id,
+          data: form,
+        }),
+      )
+      if (patchDriver.fulfilled.match(result)) {
+        setOpen(false)
+        setEditingDriver(null)
+        setForm(emptyForm)
+      } else {
+        setFormError(result.payload || 'Failed to update driver')
+      }
+    } else {
+      const result = await dispatch(addDriver(form))
+      if (addDriver.fulfilled.match(result)) {
+        setOpen(false)
+        setForm(emptyForm)
+      } else {
+        setFormError(result.payload || 'Failed to add driver')
+      }
     }
   }
 
@@ -83,7 +143,7 @@ function Drivers() {
           onChange={(e) => dispatch(setDriverSearch(e.target.value))}
           className="max-w-xs"
         />
-        <Button onClick={() => setOpen(true)}>
+        <Button onClick={handleAddClick}>
           <Plus size={16} /> Add Driver
         </Button>
       </div>
@@ -100,11 +160,12 @@ function Drivers() {
               <th className="px-3 py-3 font-medium">Trip Compl.</th>
               <th className="px-3 py-3 font-medium">Safety</th>
               <th className="px-3 py-3 font-medium">Status</th>
+              <th className="px-3 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {drivers.map((driver) => (
-              <DriverRow key={driver.id} driver={driver} />
+              <DriverRow key={driver.id} driver={driver} onEdit={handleEditClick} />
             ))}
           </tbody>
         </table>
@@ -142,13 +203,14 @@ function Drivers() {
         Rule: Expired license or Suspended status → blocked from trip assignment
       </p>
 
-      <Modal open={open} title="Add Driver" onClose={() => setOpen(false)}>
+      <Modal open={open} title={editingDriver ? 'Edit Driver' : 'Add Driver'} onClose={() => setOpen(false)}>
         <form onSubmit={onSubmit} className="space-y-3">
           <Input
             label="Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
+            disabled={!!editingDriver}
           />
           <Input
             label="License Number"
@@ -174,14 +236,31 @@ function Drivers() {
           <Input
             label="Contact"
             value={form.contact}
-            onChange={(e) => setForm({ ...form, contact: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '')
+              if (val.length <= 10) {
+                setForm({ ...form, contact: val })
+              }
+            }}
             required
+            maxLength={10}
+            pattern="\d{10}"
+            placeholder="10-digit mobile number"
           />
+          {editingDriver && (
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              options={Object.values(DRIVER_STATUS)}
+            />
+          )}
+          {formError ? <p className="text-sm text-status-cancelled">{formError}</p> : null}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Save Driver</Button>
+            <Button type="submit">{editingDriver ? 'Update Driver' : 'Save Driver'}</Button>
           </div>
         </form>
       </Modal>

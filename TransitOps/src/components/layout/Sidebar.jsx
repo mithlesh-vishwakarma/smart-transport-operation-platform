@@ -10,7 +10,9 @@ import {
   BarChart3,
   Settings,
 } from 'lucide-react'
-import { NAV_ITEMS } from '../../utils/constants'
+import { NAV_ITEMS, ROLE_ACCESS } from '../../utils/constants'
+import { useAppSelector } from '../../store/hooks'
+import { selectUserRole } from '../../store/slices/authSlice'
 
 const ICONS = {
   LayoutDashboard,
@@ -24,6 +26,10 @@ const ICONS = {
 }
 
 function Sidebar() {
+  const role = useAppSelector(selectUserRole)
+  const allowedPaths = ROLE_ACCESS[role] || []
+  const visibleItems = NAV_ITEMS.filter((item) => allowedPaths.includes(item.path))
+
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-surface-700 bg-surface-900">
       <div className="border-b border-surface-700 px-5 py-6">
@@ -35,7 +41,7 @@ function Sidebar() {
         </p>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = ICONS[item.icon]
           return (
             <NavLink

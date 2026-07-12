@@ -1,14 +1,16 @@
 import { memo, useEffect, useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Edit } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   addVehicle,
   loadVehicles,
+  patchVehicle,
   selectFilteredVehicles,
   selectVehicleFilters,
   setVehicleFilters,
 } from '../store/slices/vehiclesSlice'
-import { VEHICLE_STATUS, VEHICLE_TYPES } from '../utils/constants'
+import { VEHICLE_STATUS, VEHICLE_TYPES, ROLES } from '../utils/constants'
+import { selectUserRole } from '../store/slices/authSlice'
 import { formatCurrency, formatNumber, parseCapacityKg } from '../utils/format'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -16,7 +18,7 @@ import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import StatusBadge from '../components/ui/StatusBadge'
 
-const VehicleRow = memo(function VehicleRow({ vehicle }) {
+const VehicleRow = memo(function VehicleRow({ vehicle, onEdit, isReadOnly }) {
   return (
     <tr className="border-b border-surface-700/80 last:border-0">
       <td className="px-3 py-3 text-sm font-medium text-ink-100">{vehicle.registrationNumber}</td>
@@ -28,6 +30,18 @@ const VehicleRow = memo(function VehicleRow({ vehicle }) {
       <td className="px-3 py-3">
         <StatusBadge status={vehicle.status} />
       </td>
+      {!isReadOnly && (
+        <td className="px-3 py-3">
+          <button
+            type="button"
+            onClick={() => onEdit(vehicle)}
+            className="text-info hover:text-info/80 cursor-pointer"
+            title="Edit Vehicle"
+          >
+            <Edit size={16} />
+          </button>
+        </td>
+      )}
     </tr>
   )
 })
@@ -48,33 +62,77 @@ function Fleet() {
   const vehicles = useAppSelector(selectFilteredVehicles)
   const filters = useAppSelector(selectVehicleFilters)
   const error = useAppSelector((s) => s.vehicles.error)
+  const role = useAppSelector(selectUserRole)
   const [open, setOpen] = useState(false)
+  const [editingVehicle, setEditingVehicle] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [formError, setFormError] = useState('')
+
+  const isReadOnly = role === ROLES.DISPATCHER || role === ROLES.FINANCIAL_ANALYST
 
   useEffect(() => {
     dispatch(loadVehicles(filters))
   }, [dispatch, filters])
-  const [formError, setFormError] = useState('')
 
   const typeOptions = useMemo(() => ['All', ...VEHICLE_TYPES], [])
   const statusOptions = useMemo(() => ['All', ...Object.values(VEHICLE_STATUS)], [])
 
+  const handleEditClick = (vehicle) => {
+    setEditingVehicle(vehicle)
+    setForm({
+      registrationNumber: vehicle.registrationNumber,
+      nameModel: vehicle.nameModel,
+      type: vehicle.type,
+      capacity: vehicle.capacity,
+      odometer: String(vehicle.odometer),
+      acquisitionCost: String(vehicle.acquisitionCost),
+      status: vehicle.status,
+      region: vehicle.region || 'Gandhinagar',
+    })
+    setFormError('')
+    setOpen(true)
+  }
+
+  const handleAddClick = () => {
+    setEditingVehicle(null)
+    setForm(emptyForm)
+    setFormError('')
+    setOpen(true)
+  }
+
   const onSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
-    const result = await dispatch(
-      addVehicle({
-        ...form,
-        odometer: Number(form.odometer) || 0,
-        acquisitionCost: Number(form.acquisitionCost) || 0,
-        capacityKg: parseCapacityKg(form.capacity),
-      }),
-    )
-    if (addVehicle.fulfilled.match(result)) {
-      setOpen(false)
-      setForm(emptyForm)
+    
+    const vehicleData = {
+      ...form,
+      odometer: Number(form.odometer) || 0,
+      acquisitionCost: Number(form.acquisitionCost) || 0,
+      capacityKg: parseCapacityKg(form.capacity),
+    }
+
+    if (editingVehicle) {
+      const result = await dispatch(
+        patchVehicle({
+          id: editingVehicle.id,
+          data: vehicleData,
+        }),
+      )
+      if (patchVehicle.fulfilled.match(result)) {
+        setOpen(false)
+        setEditingVehicle(null)
+        setForm(emptyForm)
+      } else {
+        setFormError(result.payload || 'Failed to update vehicle')
+      }
     } else {
-      setFormError(result.payload || 'Failed to add vehicle')
+      const result = await dispatch(addVehicle(vehicleData))
+      if (addVehicle.fulfilled.match(result)) {
+        setOpen(false)
+        setForm(emptyForm)
+      } else {
+        setFormError(result.payload || 'Failed to add vehicle')
+      }
     }
   }
 
@@ -104,9 +162,11 @@ function Fleet() {
             className="min-w-[200px]"
           />
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} /> Add Vehicle
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleAddClick}>
+            <Plus size={16} /> Add Vehicle
+          </Button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-surface-700 bg-surface-900">
@@ -120,11 +180,17 @@ function Fleet() {
               <th className="px-3 py-3 font-medium">Odometer</th>
               <th className="px-3 py-3 font-medium">Acq. Cost</th>
               <th className="px-3 py-3 font-medium">Status</th>
+              {!isReadOnly && <th className="px-3 py-3 font-medium">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {vehicles.map((vehicle) => (
-              <VehicleRow key={vehicle.id} vehicle={vehicle} />
+              <VehicleRow
+                key={vehicle.id}
+                vehicle={vehicle}
+                onEdit={handleEditClick}
+                isReadOnly={isReadOnly}
+              />
             ))}
           </tbody>
         </table>
@@ -136,13 +202,14 @@ function Fleet() {
       </p>
       {error ? <p className="text-sm text-status-cancelled">{error}</p> : null}
 
-      <Modal open={open} title="Add Vehicle" onClose={() => setOpen(false)}>
+      <Modal open={open} title={editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'} onClose={() => setOpen(false)}>
         <form onSubmit={onSubmit} className="space-y-3">
           <Input
             label="Registration Number"
             value={form.registrationNumber}
             onChange={(e) => setForm({ ...form, registrationNumber: e.target.value })}
             required
+            disabled={!!editingVehicle}
           />
           <Input
             label="Name / Model"
@@ -179,12 +246,20 @@ function Fleet() {
               onChange={(e) => setForm({ ...form, acquisitionCost: e.target.value })}
             />
           </div>
+          {editingVehicle && (
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              options={Object.values(VEHICLE_STATUS)}
+            />
+          )}
           {formError ? <p className="text-sm text-status-cancelled">{formError}</p> : null}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Save Vehicle</Button>
+            <Button type="submit">{editingVehicle ? 'Update Vehicle' : 'Save Vehicle'}</Button>
           </div>
         </form>
       </Modal>
@@ -193,3 +268,4 @@ function Fleet() {
 }
 
 export default memo(Fleet)
+

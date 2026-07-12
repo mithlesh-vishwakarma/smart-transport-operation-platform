@@ -13,10 +13,10 @@ export const ROLE_HOME = {
 }
 
 export const ROLE_ACCESS = {
-  [ROLES.FLEET_MANAGER]: ['/fleet', '/maintenance', '/dashboard', '/settings'],
-  [ROLES.DISPATCHER]: ['/dashboard', '/trips', '/fleet', '/drivers', '/settings'],
-  [ROLES.SAFETY_OFFICER]: ['/drivers', '/dashboard', '/settings'],
-  [ROLES.FINANCIAL_ANALYST]: ['/fuel', '/analytics', '/dashboard', '/settings'],
+  [ROLES.FLEET_MANAGER]: ['/dashboard', '/fleet', '/drivers', '/maintenance', '/analytics', '/settings'],
+  [ROLES.DISPATCHER]: ['/dashboard', '/fleet', '/trips', '/settings'],
+  [ROLES.SAFETY_OFFICER]: ['/dashboard', '/drivers', '/trips', '/settings'],
+  [ROLES.FINANCIAL_ANALYST]: ['/dashboard', '/fleet', '/fuel', '/analytics', '/settings'],
 }
 
 export const VEHICLE_STATUS = {
