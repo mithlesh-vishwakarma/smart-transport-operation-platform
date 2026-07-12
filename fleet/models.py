@@ -162,7 +162,7 @@ class MaintenanceLog(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     description = models.TextField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
     is_active = models.BooleanField(default=True)
 
     def save(self, *args, **kwargs):
@@ -188,7 +188,7 @@ class FuelLog(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     liters = models.FloatField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
 
     def __str__(self):
         return f"{self.vehicle.registration_number} - {self.liters}L ({self.date})"
@@ -205,7 +205,7 @@ class Expense(models.Model):
     expense_type = models.CharField(max_length=50, choices=ExpenseType.choices)
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True)
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
     
     # Audit log dynamic reference mapping
     ref_id = models.IntegerField(null=True, blank=True)
