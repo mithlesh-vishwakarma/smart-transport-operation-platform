@@ -101,14 +101,17 @@ export const createExpense = async (payload) => {
     return expense
   }
 
-  // Look up matching vehicle to associate the expense
-  const { data: vehicles } = await apiClient.get('/vehicles/')
-  const matchedVehicle = vehicles.find(
-    (v) =>
-      v.name_model?.toLowerCase().includes(payload.vehicleName?.toLowerCase()) ||
-      v.registration_number?.toLowerCase().includes(payload.vehicleName?.toLowerCase())
-  )
-  const vehicleId = matchedVehicle ? matchedVehicle.id : (vehicles[0] ? vehicles[0].id : 1)
+  // Prefer vehicleId if passed directly, otherwise fall back to vehicle name lookup
+  let vehicleId = payload.vehicleId
+  if (!vehicleId) {
+    const { data: vehicles } = await apiClient.get('/vehicles/')
+    const matchedVehicle = vehicles.find(
+      (v) =>
+        v.name_model?.toLowerCase().includes(payload.vehicleName?.toLowerCase()) ||
+        v.registration_number?.toLowerCase().includes(payload.vehicleName?.toLowerCase())
+    )
+    vehicleId = matchedVehicle ? matchedVehicle.id : (vehicles[0] ? vehicles[0].id : 1)
+  }
 
   const expensePayload = mapFrontendExpense(payload)
   expensePayload.vehicle = vehicleId

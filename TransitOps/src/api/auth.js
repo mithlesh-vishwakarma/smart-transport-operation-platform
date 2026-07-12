@@ -32,7 +32,7 @@ export const loginRequest = async ({ email, password, role }) => {
   }
 
   // Use trailing slash to match django SimpleJWT endpoint exactly
-  const { data } = await apiClient.post('/auth/login/', { username: email, password })
+  const { data } = await apiClient.post('/auth/login/', { username: email, password, role })
   return data
 }
 

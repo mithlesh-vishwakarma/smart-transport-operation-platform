@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import models
+from django.db.models import Sum, Count, Q
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.utils import timezone
@@ -47,7 +48,7 @@ class DriverProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsFleetManagerOrReadOnly]
 
     def get_queryset(self):
-        queryset = DriverProfile.objects.all()
+        queryset = DriverProfile.objects.select_related('user')
         params = self.request.query_params if hasattr(self.request, 'query_params') else self.request.GET
         status = params.get('status')
         license_category = params.get('license_category')
@@ -70,7 +71,7 @@ class TripViewSet(viewsets.ModelViewSet):
     permission_classes = [IsFleetManagerOrReadOnly]
 
     def get_queryset(self):
-        queryset = Trip.objects.all()
+        queryset = Trip.objects.select_related('vehicle', 'driver__user')
         params = self.request.query_params if hasattr(self.request, 'query_params') else self.request.GET
         status_param = params.get('status')
         if status_param:
@@ -120,17 +121,17 @@ class TripViewSet(viewsets.ModelViewSet):
 class MaintenanceLogViewSet(viewsets.ModelViewSet):
     serializer_class = MaintenanceLogSerializer
     permission_classes = [IsFleetManagerOrReadOnly]
-    queryset = MaintenanceLog.objects.all()
+    queryset = MaintenanceLog.objects.select_related('vehicle')
 
 class FuelLogViewSet(viewsets.ModelViewSet):
     serializer_class = FuelLogSerializer
     permission_classes = [IsFleetManagerOrReadOnly]
-    queryset = FuelLog.objects.all()
+    queryset = FuelLog.objects.select_related('vehicle')
 
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     permission_classes = [IsFleetManagerOrReadOnly]
-    queryset = Expense.objects.all()
+    queryset = Expense.objects.select_related('vehicle')
 
 class DashboardKPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -168,42 +169,62 @@ class AnalyticsReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # Fetch all related data in bulk to eliminate N+1 queries
         vehicles = Vehicle.objects.all()
-        report_data = []
 
+        # Aggregate fuel data per vehicle in a single query
+        fuel_agg = (
+            FuelLog.objects
+            .values('vehicle_id')
+            .annotate(total_liters=Sum('liters'), total_fuel_cost=Sum('cost'))
+        )
+        fuel_by_vehicle = {row['vehicle_id']: row for row in fuel_agg}
+
+        # Aggregate maintenance cost per vehicle in a single query
+        maint_agg = (
+            MaintenanceLog.objects
+            .values('vehicle_id')
+            .annotate(total_maintenance_cost=Sum('cost'))
+        )
+        maint_by_vehicle = {row['vehicle_id']: row['total_maintenance_cost'] for row in maint_agg}
+
+        # Fetch all completed trips in one query
+        completed_trips = Trip.objects.filter(status=Trip.Status.COMPLETED).values(
+            'vehicle_id', 'actual_distance', 'planned_distance', 'revenue'
+        )
+        trips_by_vehicle = {}
+        for t in completed_trips:
+            trips_by_vehicle.setdefault(t['vehicle_id'], []).append(t)
+
+        report_data = []
         for vehicle in vehicles:
-            total_liters = sum(log.liters for log in FuelLog.objects.filter(vehicle=vehicle))
-            
-            completed_trips = Trip.objects.filter(vehicle=vehicle, status=Trip.Status.COMPLETED)
-            total_distance = sum(
-                (t.actual_distance if t.actual_distance is not None else t.planned_distance)
-                for t in completed_trips
-            )
-            
-            fuel_efficiency = 0.0
-            if total_liters > 0:
-                fuel_efficiency = total_distance / total_liters
-                
-            total_fuel_cost = sum(log.cost for log in FuelLog.objects.filter(vehicle=vehicle))
-            total_maintenance_cost = sum(log.cost for log in MaintenanceLog.objects.filter(vehicle=vehicle))
+            vid = vehicle.id
+            fuel = fuel_by_vehicle.get(vid, {})
+            total_liters = float(fuel.get('total_liters') or 0)
+            total_fuel_cost = float(fuel.get('total_fuel_cost') or 0)
+            total_maintenance_cost = float(maint_by_vehicle.get(vid) or 0)
             operational_cost = total_fuel_cost + total_maintenance_cost
-            
-            total_revenue = sum(t.revenue for t in completed_trips)
-            
-            roi = 0.0
-            if vehicle.acquisition_cost > 0:
-                roi = (total_revenue - operational_cost) / vehicle.acquisition_cost
-                
+
+            vtrips = trips_by_vehicle.get(vid, [])
+            total_distance = sum(
+                float(t['actual_distance'] if t['actual_distance'] is not None else t['planned_distance'] or 0)
+                for t in vtrips
+            )
+            total_revenue = sum(float(t['revenue'] or 0) for t in vtrips)
+
+            fuel_efficiency = (total_distance / total_liters) if total_liters > 0 else 0.0
+            roi = ((total_revenue - operational_cost) / float(vehicle.acquisition_cost)) if vehicle.acquisition_cost > 0 else 0.0
+
             report_data.append({
-                'vehicle_id': vehicle.id,
+                'vehicle_id': vid,
                 'registration_number': vehicle.registration_number,
                 'name_model': vehicle.name_model,
                 'total_distance_km': round(total_distance, 2),
                 'total_fuel_liters': round(total_liters, 2),
                 'fuel_efficiency_km_l': round(fuel_efficiency, 2),
-                'operational_cost': float(operational_cost),
-                'total_revenue': float(total_revenue),
-                'roi': round(float(roi), 4)
+                'operational_cost': round(operational_cost, 2),
+                'total_revenue': round(total_revenue, 2),
+                'roi': round(roi, 4)
             })
 
         export_param = request.query_params.get('export')
@@ -211,13 +232,11 @@ class AnalyticsReportView(APIView):
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="fleet_analytics_report.csv"'
             writer = csv.writer(response)
-            
             writer.writerow([
-                'Vehicle ID', 'Registration Number', 'Name/Model', 
-                'Total Distance (km)', 'Total Fuel (liters)', 'Fuel Efficiency (km/L)', 
-                'Operational Cost ($)', 'Total Revenue ($)', 'ROI'
+                'Vehicle ID', 'Registration Number', 'Name/Model',
+                'Total Distance (km)', 'Total Fuel (liters)', 'Fuel Efficiency (km/L)',
+                'Operational Cost', 'Total Revenue', 'ROI'
             ])
-            
             for item in report_data:
                 writer.writerow([
                     item['vehicle_id'], item['registration_number'], item['name_model'],
@@ -225,13 +244,13 @@ class AnalyticsReportView(APIView):
                     item['operational_cost'], item['total_revenue'], item['roi']
                 ])
             return response
-            
+
         return Response(report_data)
 
 class VehicleDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = VehicleDocumentSerializer
     permission_classes = [IsFleetManagerOrReadOnly]
-    queryset = VehicleDocument.objects.all()
+    queryset = VehicleDocument.objects.select_related('vehicle')
 
 class ComplianceAlertView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -241,14 +260,14 @@ class ComplianceAlertView(APIView):
         expiring_limit_driver = today + datetime.timedelta(days=30)
         expiring_limit_doc = today + datetime.timedelta(days=15)
         
-        expired_drivers = DriverProfile.objects.filter(license_expiry_date__lt=today)
-        expiring_drivers = DriverProfile.objects.filter(
+        expired_drivers = DriverProfile.objects.select_related('user').filter(license_expiry_date__lt=today)
+        expiring_drivers = DriverProfile.objects.select_related('user').filter(
             license_expiry_date__gte=today,
             license_expiry_date__lte=expiring_limit_driver
         )
-        
-        expired_docs = VehicleDocument.objects.filter(expiry_date__lt=today)
-        expiring_docs = VehicleDocument.objects.filter(
+
+        expired_docs = VehicleDocument.objects.select_related('vehicle').filter(expiry_date__lt=today)
+        expiring_docs = VehicleDocument.objects.select_related('vehicle').filter(
             expiry_date__gte=today,
             expiry_date__lte=expiring_limit_doc
         )
